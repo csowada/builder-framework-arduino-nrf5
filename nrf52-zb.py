@@ -161,9 +161,8 @@ env.Append(
 )
 
 # Process softdevice options
-softdevice_name = board.get("build.softdevice.sd_name")
+softdevice_name = board.get("build.softdevice.sd_name", "")
 board_name = board.get("build.bootloader.hex_filename", board.get("build.variant"))
-softdevice_name = ""
 
 if softdevice_name:
     env.Append(
@@ -184,6 +183,26 @@ if softdevice_name:
             if f == "{0}_bootloader-{1}_{2}_{3}.hex".format(
                     variant, bootloader_version, softdevice_name, softdevice_version):
                 env.Append(DFUBOOTHEX=join(hex_path, f))
+
+    if not board.get("build.ldscript", ""):
+        # Update linker script:
+        ldscript_dir = join(CORE_DIR, "linker")
+        ldscript_name = board.get("build.arduino.ldscript", "")
+        if ldscript_name:
+            env.Append(LIBPATH=[ldscript_dir])
+            env.Replace(LDSCRIPT_PATH=ldscript_name)
+        else:
+            print("Warning! Cannot find an appropriate linker script for the "
+                  "required softdevice!")
+
+# NO SOFTDEVICE
+else:
+    env.Append(
+        CPPPATH=[
+            join(CORE_DIR, "nordic", "components", "drivers_nrf","nrf_soc_nosd"),
+            # join(CORE_DIR, "nordic", "components", "softdevice","mbr"),
+        ]
+    )
 
     if not board.get("build.ldscript", ""):
         # Update linker script:
