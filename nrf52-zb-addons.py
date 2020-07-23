@@ -5,6 +5,11 @@ from SCons.Script import DefaultEnvironment
 
 import re
 
+try:
+    import configparser
+except ImportError:
+    import ConfigParser as configparser
+
 env = DefaultEnvironment()
 platform = env.PioPlatform()
 board = env.BoardConfig()
@@ -16,147 +21,136 @@ assert isdir(FRAMEWORK_DIR)
 ZB_SDK_DIR = join(FRAMEWORK_DIR, "cores", "zigbee-sdk")
 assert isdir(ZB_SDK_DIR)
 
-# NORDIC_DIR = join(FRAMEWORK_DIR, "cores", "nordic")
-# assert isdir(NORDIC_DIR)
+config = configparser.ConfigParser()
+config.read("platformio.ini")
 
-print("***************** RUN nrf-zb-addons.py ************************")
+enable_features = ""
 
-# env.Append(
-#     CPPDEFINES=[
-#         ("F_CPU", board.get("build.f_cpu")),
-#         ("ARDUINO", 10804),
-#         "ARDUINO_ARCH_NRF52",
-#         ("ARDUINO_BSP_VERSION", '\\"%s\\"' % bsp_version),
-#         "ARDUINO_FEATHER52",
-#         "ARDUINO_NRF52_ADAFRUIT",
-#         "NRF52_SERIES",
-#         ("LFS_NAME_MAX", 64)
-#     ],
+if config.has_option("env:" + env["PIOENV"], "custom_enable_features"):
+    enable_features = config.get("env:" + env["PIOENV"], "custom_enable_features", [])
 
-env.Append(
-    CPPDEFINES=[
-        "USE_APP_CONFIG",
 
-        "BOARD_PCA10056",
-        "APP_TIMER_V2",
-        "APP_TIMER_V2_RTC1_ENABLED",
-        "CONFIG_GPIO_AS_PINRESET",
-        "ENABLE_FEM",
-        "FLOAT_ABI_HARD",
-        "NRF52840_XXAA",
-        ("ZB_TRACE_LEVEL", 0),
-        ("ZB_TRACE_MASK", 0)
-    ]
-)
+
+useZigbee = False
+
+# not used, just to store the minimal c files
+useNrfxCore = False
+
+
+print("EXTRA FEATURES: ")
+
+if "ZIGBEE" in enable_features:
+    print " - ZIGBEE"
+    useZigbee = True
+
+if "HYPERLOOP" in enable_features:
+    print " - HYPERLOOP"
+
+if "NRFX_CORE" in enable_features:
+    print " - NRFX_CORE"
+    useNrfxCore = True
+
+
+libs = []
 
 env.Append(
     CPPPATH=[
-#         join(ZB_SDK_DIR, "modules", "nrfx", "mdk"),
-#         join(ZB_SDK_DIR, "external", "fprintf"),
-
-#         join("$PROJECT_DIR", "include"),
-
-#         # join(ZB_SDK_DIR, "components", "softdevice", "mbr", "headers"),
-#         # join(ZB_SDK_DIR, "components", "softdevice", "s140", "headers"),
-#         # join(ZB_SDK_DIR, "components", "softdevice", "common"),
-
-#         join(ZB_SDK_DIR, "modules", "nrfx"),
-
-#         join(ZB_SDK_DIR, "components", "libraries", "button"),
-#         join(ZB_SDK_DIR, "components", "libraries", "fstorage"),
-
-# # CORE
-#         join(ZB_SDK_DIR, "components", "toolchain", "cmsis", "include"),
-#         join(ZB_SDK_DIR, "components", "drivers_nrf", "nrf_soc_nosd"),
-#         join(ZB_SDK_DIR, "modules", "nrfx", "drivers","include"),
-#         join(ZB_SDK_DIR, "modules", "nrfx", "drivers", "src"),
-#         join(ZB_SDK_DIR, "modules", "nrfx", "hal"),
-# # ####
-
-
-
-
-
-# NEW #############################################
-
         join(ZB_SDK_DIR),
 
         join(ZB_SDK_DIR, "external", "fprintf"),
+
+        join(ZB_SDK_DIR, "integration", "nrfx"),
+        join(ZB_SDK_DIR, "integration", "nrfx", "legacy"),
 
         join(ZB_SDK_DIR, "components"),
         join(ZB_SDK_DIR, "components", "boards"),
         join(ZB_SDK_DIR, "components", "softdevice", "common"),
 
-        join(ZB_SDK_DIR, "components", "libraries", "log"),
-        join(ZB_SDK_DIR, "components", "libraries", "log", "src"),
-        join(ZB_SDK_DIR, "components", "libraries", "util"),
-        join(ZB_SDK_DIR, "components", "libraries", "experimental_section_vars"),
-        join(ZB_SDK_DIR, "components", "libraries", "strerror"),
-        join(ZB_SDK_DIR, "components", "libraries", "timer"),
-        join(ZB_SDK_DIR, "components", "libraries", "delay"),
-        join(ZB_SDK_DIR, "components", "libraries", "sortlist"),
-        join(ZB_SDK_DIR, "components", "libraries", "pwr_mgmt"),
+        join(ZB_SDK_DIR, "components", "libraries", "assert"),
         join(ZB_SDK_DIR, "components", "libraries", "atomic"),
         join(ZB_SDK_DIR, "components", "libraries", "atomic_fifo"),
-        join(ZB_SDK_DIR, "components", "libraries", "memobj"),
         join(ZB_SDK_DIR, "components", "libraries", "balloc"),
-        join(ZB_SDK_DIR, "components", "libraries", "ringbuf"),
-        join(ZB_SDK_DIR, "components", "libraries", "mutex"),
-        join(ZB_SDK_DIR, "components", "libraries", "gpiote"),
-        join(ZB_SDK_DIR, "components", "libraries", "scheduler"),
-        join(ZB_SDK_DIR, "components", "libraries", "fstorage"),
-        join(ZB_SDK_DIR, "components", "libraries", "pwm"),
-        join(ZB_SDK_DIR, "components", "libraries", "queue"),
         join(ZB_SDK_DIR, "components", "libraries", "bsp"),
         join(ZB_SDK_DIR, "components", "libraries", "button"),
-
-        join(ZB_SDK_DIR, "integration", "nrfx"),
-        join(ZB_SDK_DIR, "integration", "nrfx", "legacy"),
-
-
-        join(ZB_SDK_DIR, "components", "zigbee","common"),
-
-        join(ZB_SDK_DIR, "external", "nRF-IEEE-802.15.4-radio-driver", "src"),
-        join(ZB_SDK_DIR, "external", "nRF-IEEE-802.15.4-radio-driver", "src", "fem"),
-        join(ZB_SDK_DIR, "external", "nRF-IEEE-802.15.4-radio-driver", "src", "fem", "three_pin_gpio"),
-
-        join(ZB_SDK_DIR, "external", "zboss", "include"),
-        join(ZB_SDK_DIR, "external", "zboss", "include", "ha"),
-        join(ZB_SDK_DIR, "external", "zboss", "include", "osif"),
-        join(ZB_SDK_DIR, "external", "zboss", "include", "zcl"),
-        join(ZB_SDK_DIR, "external", "zboss", "osif"),
-        join(ZB_SDK_DIR, "external", "zboss", "addons"),
-        join(ZB_SDK_DIR, "external", "zboss", "zb_error"),
+        join(ZB_SDK_DIR, "components", "libraries", "delay"),
+        join(ZB_SDK_DIR, "components", "libraries", "experimental_section_vars"),
+        join(ZB_SDK_DIR, "components", "libraries", "fstorage"),
+        join(ZB_SDK_DIR, "components", "libraries", "gpiote"),
+        join(ZB_SDK_DIR, "components", "libraries", "log"),
+        join(ZB_SDK_DIR, "components", "libraries", "log", "src"),
+        join(ZB_SDK_DIR, "components", "libraries", "memobj"),
+        join(ZB_SDK_DIR, "components", "libraries", "mutex"),
+        join(ZB_SDK_DIR, "components", "libraries", "pwm"),
+        join(ZB_SDK_DIR, "components", "libraries", "pwr_mgmt"),
+        join(ZB_SDK_DIR, "components", "libraries", "queue"),
+        join(ZB_SDK_DIR, "components", "libraries", "ringbuf"),
+        join(ZB_SDK_DIR, "components", "libraries", "scheduler"),
+        join(ZB_SDK_DIR, "components", "libraries", "sortlist"),
+        join(ZB_SDK_DIR, "components", "libraries", "strerror"),
+        join(ZB_SDK_DIR, "components", "libraries", "timer"),
+        join(ZB_SDK_DIR, "components", "libraries", "util"),
     ]
 )
 
-env.Append(
-    LIBPATH = [
-        join(ZB_SDK_DIR, "external", "zboss", "lib", "gcc"),
-        join(ZB_SDK_DIR, "external", "zboss", "lib", "gcc", "nrf52840")
-    ],
-)
+# Add the ZIGBEE stuff
+if useZigbee:
 
-libs = []
+    env.Append(
+        CPPPATH=[
+            join(ZB_SDK_DIR, "components", "zigbee","common"),
 
-libs.append([
-    "zboss",
-    "nrf_radio_driver",
-])
+            join(ZB_SDK_DIR, "external", "nRF-IEEE-802.15.4-radio-driver", "src"),
+            join(ZB_SDK_DIR, "external", "nRF-IEEE-802.15.4-radio-driver", "src", "fem"),
+            join(ZB_SDK_DIR, "external", "nRF-IEEE-802.15.4-radio-driver", "src", "fem", "three_pin_gpio"),
 
-# libs.append(
-#     env.BuildLibrary(
-#         join("$BUILD_DIR", "FrameworkZigbeeSdk"),
-#         join(ZB_SDK_DIR)))
+            join(ZB_SDK_DIR, "external", "zboss", "include"),
+            join(ZB_SDK_DIR, "external", "zboss", "include", "ha"),
+            join(ZB_SDK_DIR, "external", "zboss", "include", "osif"),
+            join(ZB_SDK_DIR, "external", "zboss", "include", "zcl"),
+            join(ZB_SDK_DIR, "external", "zboss", "osif"),
+            join(ZB_SDK_DIR, "external", "zboss", "addons"),
+            join(ZB_SDK_DIR, "external", "zboss", "zb_error"),
+        ]
+    )
+
+    env.Append(
+        LIBPATH = [
+            join(ZB_SDK_DIR, "external", "zboss", "lib", "gcc"),
+            join(ZB_SDK_DIR, "external", "zboss", "lib", "gcc", "nrf52840")
+        ],
+    )
+
+    libs.append([
+        "zboss",
+        "nrf_radio_driver",
+    ])
+
+    libs.append(
+        env.StaticLibrary(
+            env.subst(join("$BUILD_DIR", "FrameworkSDK-ZB")), [
+                join(ZB_SDK_DIR, "external", "zboss","zb_error", "zb_error_to_string.c"),
+                join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_common.c"),
+                join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_nrf_logger.c"),
+                join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_nvram.c"),
+                join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_sdk_config_deps.c"),
+                join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_timer.c"),
+                join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_transceiver.c"),
+                join(ZB_SDK_DIR, "external", "zboss","addons", "zcl", "zb_zcl_common_addons.c"),
+                join(ZB_SDK_DIR, "external", "zboss","addons", "zcl", "zb_zcl_ota_upgrade_addons.c"),
+                join(ZB_SDK_DIR, "components", "zigbee","common", "zigbee_helpers.c"),
+                join(ZB_SDK_DIR, "components", "zigbee","common", "zigbee_logger_eprxzcl.c"),
+            ]
+        )
+    )
 
 libs.append(
     env.StaticLibrary(
         env.subst(join("$BUILD_DIR", "FrameworkSDK")), [
 
-            join(ZB_SDK_DIR, "integration", "nrfx","legacy", "nrf_drv_clock.c"),
-            join(ZB_SDK_DIR, "integration", "nrfx","legacy", "nrf_drv_ppi.c"),
-            join(ZB_SDK_DIR, "integration", "nrfx","legacy", "nrf_drv_rng.c"),
-            join(ZB_SDK_DIR, "integration", "nrfx","legacy", "nrf_drv_uart.c"),
+            join(ZB_SDK_DIR, "integration", "nrfx", "legacy", "nrf_drv_clock.c"),
+            join(ZB_SDK_DIR, "integration", "nrfx", "legacy", "nrf_drv_ppi.c"),
+            join(ZB_SDK_DIR, "integration", "nrfx", "legacy", "nrf_drv_rng.c"),
+            join(ZB_SDK_DIR, "integration", "nrfx", "legacy", "nrf_drv_uart.c"),
 
 # BASIC BLINKY
             join(ZB_SDK_DIR, "components", "libraries","log", "src", "nrf_log_frontend.c"),
@@ -209,52 +203,46 @@ libs.append(
 
             # # from nrfx
             join(ZB_SDK_DIR, "components", "libraries","strerror", "nrf_strerror.c"),
-
-            join(ZB_SDK_DIR, "external", "zboss","zb_error", "zb_error_to_string.c"),
-            join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_common.c"),
-            join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_nrf_logger.c"),
-            join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_nvram.c"),
-            join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_sdk_config_deps.c"),
-            join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_timer.c"),
-            join(ZB_SDK_DIR, "external", "zboss","osif", "zb_nrf52_transceiver.c"),
-            join(ZB_SDK_DIR, "external", "zboss","addons", "zcl", "zb_zcl_common_addons.c"),
-            join(ZB_SDK_DIR, "external", "zboss","addons", "zcl", "zb_zcl_ota_upgrade_addons.c"),
-            join(ZB_SDK_DIR, "components", "zigbee","common", "zigbee_helpers.c"),
-            join(ZB_SDK_DIR, "components", "zigbee","common", "zigbee_logger_eprxzcl.c"),
-
-
-            # Add nrfx core module
-            # join(NORDIC_DIR, "nrfx","mdk", "gcc_startup_nrf52840.S"),
-            # join(NORDIC_DIR, "nrfx","mdk", "system_nrf52840.c"),
-            # join(NORDIC_DIR, "nrfx","hal", "nrf_ecb.c"),
-            # join(NORDIC_DIR, "nrfx","hal", "nrf_nvmc.c"),
-
-            # join(NORDIC_DIR, "nrfx","soc", "nrfx_atomic.c"),
-
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_clock.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_gpiote.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_ppi.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "prs", "nrfx_prs.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_pwm.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_rng.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_systick.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_timer.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_uart.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_uarte.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_timer.c"),
-
-
-            # # for TinyUSB and Arduino Setup?
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_power.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_qspi.c"),
-            # join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_spim.c"),
-
-            # join(NORDIC_DIR, "components", "drivers_nrf","nrf_soc_nosd", "nrf_nvic.c"),
-            # join(NORDIC_DIR, "components", "drivers_nrf","nrf_soc_nosd", "nrf_soc.c"),
         ]
     )
 )
 
+if useNrfxCore:
+    libs.append(
+        env.StaticLibrary(
+            env.subst(join("$BUILD_DIR", "FrameworkNRFXCore")), [
+                # Add nrfx core module
+                join(NORDIC_DIR, "nrfx","mdk", "gcc_startup_nrf52840.S"),
+                join(NORDIC_DIR, "nrfx","mdk", "system_nrf52840.c"),
+
+                # compile non SOFTDEVICE
+                join(NORDIC_DIR, "components", "drivers_nrf","nrf_soc_nosd", "nrf_nvic.c"),
+                join(NORDIC_DIR, "components", "drivers_nrf","nrf_soc_nosd", "nrf_soc.c"),
+
+                join(NORDIC_DIR, "nrfx","hal", "nrf_ecb.c"),
+                join(NORDIC_DIR, "nrfx","hal", "nrf_nvmc.c"),
+
+                join(NORDIC_DIR, "nrfx","soc", "nrfx_atomic.c"),
+
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_clock.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_gpiote.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_ppi.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "prs", "nrfx_prs.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_pwm.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_rng.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_systick.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_timer.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_uart.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_uarte.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_timer.c"),
+
+                # for TinyUSB and Arduino Setup?
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_power.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_qspi.c"),
+                join(NORDIC_DIR, "nrfx","drivers", "src", "nrfx_spim.c"),
+            ]
+        )
+    )
 
 # env.Prepend(LIBS=libs)
 env.Append(LIBS=libs)

@@ -31,6 +31,12 @@ platform = env.PioPlatform()
 board = env.BoardConfig()
 variant = board.get("build.variant")
 
+# # access to global construction environment
+# print(env)
+
+# # Dump construction environment (for debug purpose)
+# print(env.Dump())
+
 FRAMEWORK_DIR = platform.get_package_dir("framework-arduinonordicnrf52-zb-sdk")
 assert isdir(FRAMEWORK_DIR)
 
@@ -43,6 +49,10 @@ assert isdir(NORDIC_DIR)
 default_bsp_version = "0.19.0"
 default_softdevice_version = "6.1.1"
 default_bootloader_version = "0.3.2"
+
+
+
+
 
 # Read defaults from build.txt/platform.txt/programmers.txt
 with open(join(FRAMEWORK_DIR, "platform.txt"), "r") as fp:
@@ -64,8 +74,6 @@ bsp_version = board.get("build.bsp.version", default_bsp_version)
 softdevice_version = board.get("build.softdevice.sd_version", default_softdevice_version)
 bootloader_version = board.get("build.bootloader.version", default_bootloader_version)
 
-# print(bsp_version, softdevice_version, bootloader_version)
-
 env.Append(
     ASFLAGS=["-x", "assembler-with-cpp"],
 
@@ -78,11 +86,7 @@ env.Append(
         "-Wall",
         "-mthumb",
         "-nostdlib",
-        "--param", "max-inline-insns-single=500",
-
-        # "-mfloat-abi=hard",
-        # "-mfpu=fpv4-sp-d16",
-        # "-u", "_printf_float"
+        "--param", "max-inline-insns-single=500"
     ],
 
     CXXFLAGS=[
@@ -96,10 +100,8 @@ env.Append(
         ("F_CPU", board.get("build.f_cpu")),
         ("ARDUINO", 10804),
         "ARDUINO_ARCH_NRF52",
-        # ("ARDUINO_BSP_VERSION", '\\"%s\\"' % bsp_version),
-        # "ARDUINO_FEATHER52",
-        # "ARDUINO_NRF52_ADAFRUIT",
         "NRF52_SERIES",
+        # "CONFIG_GPIO_AS_PINRESET",
         ("LFS_NAME_MAX", 64)
     ],
 
@@ -116,9 +118,6 @@ env.Append(
         join(NORDIC_DIR, "nrfx", "soc"),
         join(NORDIC_DIR, "nrfx", "drivers", "include"),
         join(NORDIC_DIR, "nrfx", "drivers", "src"),
-
-
-        # join(NORDIC_DIR, "components", "drivers_nrf", "nrf_soc_nosd")
     ],
 
     LINKFLAGS=[
@@ -130,11 +129,7 @@ env.Append(
         "-Wl,--check-sections",
         "-Wl,--unresolved-symbols=report-all",
         "-Wl,--warn-common",
-        "-Wl,--warn-section-align",
-
-        # "-mfloat-abi=hard",
-        # "-mfpu=fpv4-sp-d16",
-        # "-u", "_printf_float"
+        "-Wl,--warn-section-align"
     ],
 
     LIBSOURCE_DIRS=[join(FRAMEWORK_DIR, "libraries")],
@@ -208,11 +203,9 @@ if softdevice_name:
 
 # NO SOFTDEVICE
 else:
-    print("*** NO SD *****")
     env.Append(
         CPPPATH=[
-            join(NORDIC_DIR, "components", "drivers_nrf","nrf_soc_nosd"),
-            # join(CORE_DIR, "nordic", "components", "softdevice","mbr"),
+            join(NORDIC_DIR, "components", "drivers_nrf","nrf_soc_nosd")
         ]
     )
 
@@ -220,9 +213,6 @@ else:
         # Update linker script:
         ldscript_dir = join(CORE_DIR, "linker", "sdk")
         ldscript_name = board.get("build.arduino.ldscript", "")
-
-        print("*** LDF: " + ldscript_name)
-
         if ldscript_name:
             env.Append(LIBPATH=[ldscript_dir])
             env.Replace(LDSCRIPT_PATH=ldscript_name)
@@ -285,6 +275,7 @@ if "CFG_DEBUG" not in cpp_flags:
 
 env.Append(
     CPPPATH=[
+        join("$PROJECT_DIR", "config"),
         join(CORE_DIR)
     ]
 )
@@ -312,7 +303,5 @@ libs.append(
         join(CORE_DIR)))
 
 env.Prepend(LIBS=libs)
-# env.Append(LIBS=libs)
 
 SConscript("nrf52-zb-addons.py", exports="env")
-# env.SConscript("nrf52-zb-addons.py")
