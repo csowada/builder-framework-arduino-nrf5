@@ -72,13 +72,17 @@ env.Append(
     CFLAGS=["-std=gnu11"],
 
     CCFLAGS=[
-        "-Ofast",
+        "-Os",  # optimize for size
         "-ffunction-sections",  # place each function in its own section
         "-fdata-sections",
         "-Wall",
         "-mthumb",
         "-nostdlib",
-        "--param", "max-inline-insns-single=500"
+        "--param", "max-inline-insns-single=500",
+
+        # "-mfloat-abi=hard",
+        # "-mfpu=fpv4-sp-d16",
+        # "-u", "_printf_float"
     ],
 
     CXXFLAGS=[
@@ -92,9 +96,9 @@ env.Append(
         ("F_CPU", board.get("build.f_cpu")),
         ("ARDUINO", 10804),
         "ARDUINO_ARCH_NRF52",
-        ("ARDUINO_BSP_VERSION", '\\"%s\\"' % bsp_version),
-        "ARDUINO_FEATHER52",
-        "ARDUINO_NRF52_ADAFRUIT",
+        # ("ARDUINO_BSP_VERSION", '\\"%s\\"' % bsp_version),
+        # "ARDUINO_FEATHER52",
+        # "ARDUINO_NRF52_ADAFRUIT",
         "NRF52_SERIES",
         ("LFS_NAME_MAX", 64)
     ],
@@ -111,11 +115,14 @@ env.Append(
         join(NORDIC_DIR, "nrfx", "mdk"),
         join(NORDIC_DIR, "nrfx", "soc"),
         join(NORDIC_DIR, "nrfx", "drivers", "include"),
-        join(NORDIC_DIR, "nrfx", "drivers", "src")
+        join(NORDIC_DIR, "nrfx", "drivers", "src"),
+
+
+        # join(NORDIC_DIR, "components", "drivers_nrf", "nrf_soc_nosd")
     ],
 
     LINKFLAGS=[
-        "-Ofast",
+        "-Os",  # optimize for size
         "-Wl,--gc-sections,--relax",
         "-mthumb",
         "--specs=nano.specs",
@@ -123,12 +130,16 @@ env.Append(
         "-Wl,--check-sections",
         "-Wl,--unresolved-symbols=report-all",
         "-Wl,--warn-common",
-        "-Wl,--warn-section-align"
+        "-Wl,--warn-section-align",
+
+        # "-mfloat-abi=hard",
+        # "-mfpu=fpv4-sp-d16",
+        # "-u", "_printf_float"
     ],
 
     LIBSOURCE_DIRS=[join(FRAMEWORK_DIR, "libraries")],
 
-    LIBS=["m"]
+    LIBS=["c", "gcc", "m", "stdc++", "nosys"]
 )
 
 if "BOARD" in env:
@@ -186,7 +197,7 @@ if softdevice_name:
 
     if not board.get("build.ldscript", ""):
         # Update linker script:
-        ldscript_dir = join(CORE_DIR, "linker")
+        ldscript_dir = join(CORE_DIR, "linker", "adafruit")
         ldscript_name = board.get("build.arduino.ldscript", "")
         if ldscript_name:
             env.Append(LIBPATH=[ldscript_dir])
@@ -197,17 +208,21 @@ if softdevice_name:
 
 # NO SOFTDEVICE
 else:
+    print("*** NO SD *****")
     env.Append(
         CPPPATH=[
-            join(CORE_DIR, "nordic", "components", "drivers_nrf","nrf_soc_nosd"),
+            join(NORDIC_DIR, "components", "drivers_nrf","nrf_soc_nosd"),
             # join(CORE_DIR, "nordic", "components", "softdevice","mbr"),
         ]
     )
 
     if not board.get("build.ldscript", ""):
         # Update linker script:
-        ldscript_dir = join(CORE_DIR, "linker")
+        ldscript_dir = join(CORE_DIR, "linker", "sdk")
         ldscript_name = board.get("build.arduino.ldscript", "")
+
+        print("*** LDF: " + ldscript_name)
+
         if ldscript_name:
             env.Append(LIBPATH=[ldscript_dir])
             env.Replace(LDSCRIPT_PATH=ldscript_name)
@@ -263,17 +278,16 @@ if "build.usb_product" in env.BoardConfig():
         ]
     )
 
+cpp_flags = env.Flatten(env.get("CPPDEFINES", []))
+
+if "CFG_DEBUG" not in cpp_flags:
+    env.Append(CPPDEFINES=[("CFG_DEBUG", 0)])
 
 env.Append(
     CPPPATH=[
         join(CORE_DIR)
     ]
 )
-
-cpp_flags = env.Flatten(env.get("CPPDEFINES", []))
-
-if "CFG_DEBUG" not in cpp_flags:
-    env.Append(CPPDEFINES=[("CFG_DEBUG", 0)])
 
 #
 # Target: Build Core Library
@@ -298,3 +312,7 @@ libs.append(
         join(CORE_DIR)))
 
 env.Prepend(LIBS=libs)
+# env.Append(LIBS=libs)
+
+SConscript("nrf52-zb-addons.py", exports="env")
+# env.SConscript("nrf52-zb-addons.py")
